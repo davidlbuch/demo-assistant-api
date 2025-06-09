@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify
-import openai
 import os
+from openai import OpenAI
 
 app = Flask(__name__)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 💬 Assistant personality and logic
 SYSTEM_PROMPT = """
 You are a friendly and insightful LMS product expert helping potential customers explore demo videos based on their needs.
 
@@ -35,18 +34,15 @@ def demo_assistant():
             {"role": "user", "content": user_message}
         ]
 
-        completion = openai.ChatCompletion.create(
+        completion = client.chat.completions.create(
             model="gpt-4",
             messages=chat_messages,
             temperature=0.7,
             max_tokens=500,
         )
 
-        # The GPT response should be a stringified JSON object
         reply = completion.choices[0].message.content.strip()
-
-        # Convert GPT output into actual JSON
-        return jsonify(eval(reply))  # Safe here because you fully control the prompt
+        return jsonify(eval(reply))
 
     except Exception as e:
         return jsonify({"error": str(e)})
