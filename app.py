@@ -1,83 +1,73 @@
-import os
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from supabase import create_client, Client
-import traceback
-
-# === CONFIG ===
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_API_KEY = os.environ.get("SUPABASE_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+import os
 
 app = Flask(__name__)
-client = OpenAI(api_key=OPENAI_API_KEY)
 
-# === ROUTE: RECOMMEND VIDEOS ===
+# 🔧 Load environment variables (adjust these for your project)
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
+
+supabase: Client = create_client(supabase_url, supabase_key)
+openai = OpenAI(api_key=openai_api_key)
+
 @app.route("/demo-assistant", methods=["POST"])
 def demo_assistant():
-    try:
-        data = request.json
-        user_message = data.get("user_message", "")
+    data = request.json
+    user_message = data.get("user_message")
 
-        if not user_message:
-            return jsonify({"error": "user_message is required"}), 400
+    if not user_message:
+        return jsonify({"error": "user_message is required"}), 400
 
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_API_KEY)
-        rows = supabase.table("demo_videos").select("title, description, transcript").execute().data
+    # Step 1: Pull all demo videos
+    response = supabase.table("demo_videos").select("*").execute()
+    all_videos = response.data
 
-        # Build assistant prompt
-        prompt = (
-            "You are a helpful LMS demo assistant. The user will describe their training needs, "
-            "and you will recommend the most relevant videos. You must only recommend videos "
-            "whose titles exactly match one of the following:\n\n"
+    # Step 2: Create a reference string for the assistant
+    reference_text = ""
+    for video in all_videos:
+        reference_text += (
+            f"Title: {video['title']}\n"
+            f"Description: {video['description']}\n"
+            f"Tags: {', '.join(video['tags']) if video['tags'] else ''}\n"
+            f"Transcript: {video['transcript']}\n\n"
         )
-        for row in rows:
-            prompt += f"- {row['title']}: {row['description']}\n"
 
-        prompt += "\nBe concise and conversational. Recommend only the most relevant titles (1–3 max). "
-        prompt += "Respond with JSON like this: {\"recommended_videos\": [...], \"response\": \"...\"}.\n"
-        prompt += f"\nUser: {user_message}"
+    # Step 3: Ask GPT which titles match
+    prompt = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant recommending LMS demo videos. "
+                "The user will describe their learning needs. Choose the most relevant video titles "
+                "based ONLY on the list of demos provided below. "
+                "Respond with a JSON object with 2 keys: "
+                "`recommended_videos` (a list of matching titles ONLY) and "
+                "`response` (a friendly sentence explaining why you chose them).\n\n"
+                f"Here is the list of available videos:\n\n{reference_text}"
+            )
+        },
+        {
+            "role": "user",
+            "content": f"My training need is: {user_message}"
+        }
+    ]
 
-        completion = client.chat.completions.create(
+    try:
+        chat_response = openai.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_message}
-            ],
-            temperature=0.7
+            messages=prompt,
+            temperature=0.3
         )
+        content = chat_response.choices[0].message.content
 
-        reply = completion.choices[0].message.content
+        # Parse the result as JSON
+        import json
+        result = json.loads(content)
 
-        return jsonify(eval(reply))  # You may sanitize this if needed
+        return jsonify(result)
 
     except Exception as e:
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-# === ROUTE: FETCH ALL VIDEOS ===
-@app.route("/all-videos", methods=["GET"])
-def all_videos():
-    try:
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_API_KEY)
-        response = supabase.table("demo_videos").select("*").execute()
-        data = response.data
-
-        videos = [
-            {
-                "title": item["title"],
-                "description": item["description"],
-                "url": item["thumbnail_url"],
-                "vimeo": item["vimeo_url"]
-            }
-            for item in data
-        ]
-
-        return jsonify({"all_videos": videos})
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-# === START LOCAL TESTING ===
-if __name__ == "__main__":
-    app.run(debug=True)
