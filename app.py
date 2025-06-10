@@ -68,6 +68,10 @@ def demo_assistant():
         result = json.loads(content)
 
         return jsonify(result)
+   except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/all-videos", methods=["GET"])
 def all_videos():
