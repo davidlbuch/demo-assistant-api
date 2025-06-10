@@ -3,6 +3,12 @@ from openai import OpenAI
 import os
 import json
 
+array_raw = data.get("array")
+try:
+    all_videos = json.loads(array_raw)
+except Exception as e:
+    return jsonify({"error": "Invalid JSON in array", "details": str(e)}), 400
+
 app = Flask(__name__)
 
 # 🔧 Load environment variables
