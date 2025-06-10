@@ -69,5 +69,26 @@ def demo_assistant():
 
         return jsonify(result)
 
+@app.route("/all-videos", methods=["GET"])
+def all_videos():
+    try:
+        supabase: Client = create_client(supabase_url, supabase_key)
+        response = supabase.table("demo_videos").select("*").execute()
+        data = response.data
+
+        videos = [
+            {
+                "title": item["title"],
+                "description": item["description"],
+                "url": item["thumbnail_url"],
+                "vimeo": item["vimeo_url"]
+            }
+            for item in data
+        ]
+
+        return jsonify({"all_videos": videos})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
