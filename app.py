@@ -3,12 +3,6 @@ from openai import OpenAI
 import os
 import json
 
-array_raw = data.get("array")
-try:
-    all_videos = json.loads(array_raw)
-except Exception as e:
-    return jsonify({"error": "Invalid JSON in array", "details": str(e)}), 400
-
 app = Flask(__name__)
 
 # 🔧 Load environment variables
@@ -19,14 +13,20 @@ openai = OpenAI(api_key=openai_api_key)
 def demo_assistant():
     data = request.json
     user_message = data.get("user_message")
-    all_videos = data.get("array")
+    array_raw = data.get("array")
 
     if not user_message:
         return jsonify({"error": "user_message is required"}), 400
-    if not isinstance(all_videos, list):
-        return jsonify({"error": "array must be a list of videos"}), 400
+    if not array_raw:
+        return jsonify({"error": "array is required"}), 400
 
-    # Step 1: Build the reference string
+    # Step 1: Try to parse the stringified JSON array
+    try:
+        all_videos = json.loads(array_raw)
+    except Exception as e:
+        return jsonify({"error": "Invalid JSON in array", "details": str(e)}), 400
+
+    # Step 2: Build reference text for GPT
     reference_text = ""
     for video in all_videos:
         reference_text += (
@@ -34,7 +34,7 @@ def demo_assistant():
             f"Description: {video.get('description', '')}\n\n"
         )
 
-    # Step 2: Ask GPT to recommend titles
+    # Step 3: GPT Prompt
     prompt = [
         {
             "role": "system",
@@ -63,7 +63,7 @@ def demo_assistant():
         content = chat_response.choices[0].message.content
         result = json.loads(content)
 
-        # Match full video objects
+        # Match titles to full objects
         recommended_titles = result.get("recommended_videos", [])
         explanation = result.get("response", "")
 
@@ -81,4 +81,3 @@ def demo_assistant():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-        
