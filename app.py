@@ -1,41 +1,34 @@
 from flask import Flask, request, jsonify
 from openai import OpenAI
-from supabase import create_client, Client
 import os
+import json
 
 app = Flask(__name__)
 
-# 🔧 Load environment variables (adjust these for your project)
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
+# 🔧 Load environment variables
 openai_api_key = os.getenv("OPENAI_API_KEY")
-
-supabase: Client = create_client(supabase_url, supabase_key)
 openai = OpenAI(api_key=openai_api_key)
 
 @app.route("/demo-assistant", methods=["POST"])
 def demo_assistant():
     data = request.json
     user_message = data.get("user_message")
+    all_videos = data.get("array")
 
     if not user_message:
         return jsonify({"error": "user_message is required"}), 400
+    if not isinstance(all_videos, list):
+        return jsonify({"error": "array must be a list of videos"}), 400
 
-    # Step 1: Pull all demo videos
-    response = supabase.table("demo_videos").select("*").execute()
-    all_videos = response.data
-
-    # Step 2: Create a reference string for the assistant
+    # Step 1: Build the reference string
     reference_text = ""
     for video in all_videos:
         reference_text += (
-            f"Title: {video['title']}\n"
-            f"Description: {video['description']}\n"
-            f"Tags: {', '.join(video['tags']) if video['tags'] else ''}\n"
-            f"Transcript: {video['transcript']}\n\n"
+            f"Title: {video.get('title', '')}\n"
+            f"Description: {video.get('description', '')}\n\n"
         )
 
-    # Step 3: Ask GPT which titles match
+    # Step 2: Ask GPT to recommend titles
     prompt = [
         {
             "role": "system",
@@ -62,37 +55,24 @@ def demo_assistant():
             temperature=0.3
         )
         content = chat_response.choices[0].message.content
-
-        # Parse the result as JSON
-        import json
         result = json.loads(content)
 
-        return jsonify(result)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        # Match full video objects
+        recommended_titles = result.get("recommended_videos", [])
+        explanation = result.get("response", "")
 
-@app.route("/all-videos", methods=["GET"])
-def all_videos():
-    try:
-        supabase: Client = create_client(supabase_url, supabase_key)
-        response = supabase.table("demo_videos").select("*").execute()
-        data = response.data
-
-        videos = [
-            {
-                "title": item["title"],
-                "description": item["description"],
-                "url": item["thumbnail_url"],
-                "vimeo": item["vimeo_url"]
-            }
-            for item in data
+        matched_videos = [
+            video for video in all_videos
+            if video.get("title", "").strip().lower() in [t.strip().lower() for t in recommended_titles]
         ]
 
-        return jsonify({"all_videos": videos})
+        return jsonify({
+            "recommended_videos": matched_videos,
+            "demo_assistant_response": explanation
+        })
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
+        
