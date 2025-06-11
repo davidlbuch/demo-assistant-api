@@ -216,9 +216,11 @@ def demo_assistant():
 def expand_array():
     data = request.json
     raw = data.get("selected_titles")
+    print("RAW selected_titles:", raw)
     try:
         selected_titles = json.loads(raw)
-    except Exception:
+    except Exception as e:
+        print("JSON parse error:", str(e))
         return jsonify({"error": "Failed to parse selected_titles"}), 400
 
     matched_videos = [
