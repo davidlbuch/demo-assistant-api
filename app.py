@@ -109,9 +109,9 @@ demo_videos = [
     },
     {
         "title": "Uploading a SCORM course",
-    "description": "Easily upload SCORM-compliant training content into the platform.",
-    "url": "https://storage.googleapis.com/demo_experience_bucket/thumbnails/thumb%20uploading%20scorm%20%281%29.jpg",
-    "vimeo": "https://player.vimeo.com/video/1084059425?share=copy"
+        "description": "Easily upload SCORM-compliant training content into the platform.",
+        "url": "https://storage.googleapis.com/demo_experience_bucket/thumbnails/thumb%20uploading%20scorm%20%281%29.jpg",
+        "vimeo": "https://player.vimeo.com/video/1084059425?share=copy"
     },
     {
         "title": "User Onboarding",
@@ -211,3 +211,18 @@ def demo_assistant():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+@app.route("/expand-array", methods=["POST"])
+def expand_array():
+    data = request.json
+    selected_titles = data.get("selected_titles", [])
+
+    if not isinstance(selected_titles, list):
+        return jsonify({"error": "selected_titles must be a list"}), 400
+
+    matched_videos = [
+        video for video in demo_videos
+        if video["title"].strip().lower() in [t.strip().lower() for t in selected_titles]
+    ]
+
+    return jsonify({"carousel_cards": matched_videos})
