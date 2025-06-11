@@ -215,8 +215,11 @@ def demo_assistant():
 @app.route("/expand-array", methods=["POST"])
 def expand_array():
     data = request.json
-    selected_titles = data.get("selected_titles", [])
-
+    raw = data.get("selected_titles")
+    try:
+        selected_titles = json.loads(raw)
+    except Exception:
+        return jsonify({"error": "Failed to parse selected_titles"}), 400
     if not isinstance(selected_titles, list):
         return jsonify({"error": "selected_titles must be a list"}), 400
 
