@@ -215,14 +215,7 @@ def demo_assistant():
 @app.route("/expand-array", methods=["POST"])
 def expand_array():
     data = request.json
-    raw = data.get("selected_titles")
-    print("RAW selected_titles:", raw)
-    try:
-        selected_titles = json.loads(raw)
-    except Exception as e:
-        print("JSON parse error:", str(e))
-        return jsonify({"error": "Failed to parse selected_titles"}), 400
-
+    selected_titles = data.get("selected_titles", [])
     matched_videos = [
         video for video in demo_videos
         if video["title"].strip().lower() in [t.strip().lower() for t in selected_titles]
