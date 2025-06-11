@@ -220,8 +220,6 @@ def expand_array():
         selected_titles = json.loads(raw)
     except Exception:
         return jsonify({"error": "Failed to parse selected_titles"}), 400
-    if not isinstance(selected_titles, list):
-        return jsonify({"error": "selected_titles must be a list"}), 400
 
     matched_videos = [
         video for video in demo_videos
