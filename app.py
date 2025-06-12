@@ -72,12 +72,6 @@ demo_videos = [
     "vimeo": "https://player.vimeo.com/video/1082567534?share=copy#t=0"
     },
     {
-    "title": "Home Page",
-    "description": "Display key learner info, alerts, and featured courses on a customizable dashboard.",
-    "url": "https://storage.googleapis.com/demo_experience_bucket/thumbnails/thumb%20home%20page.jpg",
-    "vimeo": "https://player.vimeo.com/video/1080600467?share=copy#t=0"
-    },
-    {
     "title": "Interface and Groups",
     "description": "Assign access, views, and permissions based on user roles and group memberships.",
     "url": "https://storage.googleapis.com/demo_experience_bucket/thumbnails/thumb%20groups%20%281%29.jpg",
